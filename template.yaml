@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  Serverless endpoint for Raisely webhook and data store.
+
+Parameters:
+  GoogleServiceAccountSecret:
+    Type: String
+
+  GoogleSheetId:
+    Type: String
+
+Globals:
+  Function:
+    Timeout: 30
+    Tracing: Active
+    Environment:
+      Variables:
+        GOOGLE_SERVICE_ACCOUNT_SECRET: !Ref GoogleServiceAccountSecret
+        GOOGLE_SHEET_ID: !Ref GoogleSheetId
+  Api:
+    TracingEnabled: True
+
+Resources:
+  APIGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'*'"
+        AllowMethods: "'POST, GET'"
+        MaxAge: "'600'"
+
+  RaiselyWebhookFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/src
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Role: !GetAtt RaiselyWebhookFnRole.Arn
+      Architectures:
+        - x86_64
+      Layers:
+        - arn:aws:lambda:ap-southeast-2:017000801446:layer:AWSLambdaPowertoolsPythonV2:12
+      Events:
+        Webhook:
+          Type: Api
+          Properties:
+            Path: /raisely/webhook
+            RestApiId: !Ref APIGateway
+            Method: post
+    
+  RaiselyWebhookFnRole:
+    Type: AWS::IAM::Role
+    Properties: 
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
