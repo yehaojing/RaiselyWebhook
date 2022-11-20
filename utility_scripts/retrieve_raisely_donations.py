@@ -1,11 +1,12 @@
 import requests
 import pandas as pd
+from datetime import datetime
 
 url = "https://api.raisely.com/v3/donations?private=true&limit=1000sort=createdAt&order=desc"
 
 headers = {
     "accept": "application/json",
-    "Authorization": "Bearer <put_auth_token_here>"
+    "Authorization": "<access_token_here>"
 }
 
 final_list = []
@@ -13,11 +14,12 @@ paginate = True
 
 while paginate:
     response = requests.get(url, headers=headers).json()
+    print(response)
     data = [{
         "donation_amount": donation['amount']/100,
         "postcode": donation['user']['postcode'],
         "private": donation['user']["private"],
-        "donation_datetime": donation["date"]
+        "donation_datetime": datetime.strptime(donation["date"], "%Y-%m-%dT%H:%M:%S.%fZ")
     } for donation in response['data']]
 
     idx = 0
@@ -33,7 +35,7 @@ while paginate:
     
     final_list.extend(data)
 
-    if response.json()['pagination']['nextUrl']:
+    if response['pagination']['nextUrl']:
         url = response['pagination']['nextUrl']
     else:
         paginate = False
